@@ -8,7 +8,7 @@ pub struct ChatRequest<'a> {
     pub tools: &'a [ToolSpec],
     pub temperature: f64,
     pub top_k: i64,
-    pub top_p: i64,
+    pub top_p: f64,
 }
 
 #[derive(Deserialize, Debug)]

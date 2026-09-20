@@ -1,8 +1,5 @@
 use super::types::{ChatRequest, ChatResponse};
-use crate::{
-    message::Message,
-    tool::{ToolDefinition, ToolSpec},
-};
+use crate::{message::Message, tool::ToolSpec};
 use reqwest::{Client, Url};
 use std::error::Error;
 
@@ -30,10 +27,10 @@ impl LlmClient {
         let payload = ChatRequest {
             model: &self.model,
             messages,
-            temperature: 0.0,
+            temperature: 0.2,
             tools: tools,
-            top_k: 2,
-            top_p: 2,
+            top_k: 40,
+            top_p: 0.9,
         };
         let response = self
             .client

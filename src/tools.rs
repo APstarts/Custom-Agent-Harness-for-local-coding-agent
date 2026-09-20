@@ -114,8 +114,11 @@ Do not mark a task completed unless there is evidence it has been completed.
     async fn execute(&self, arguments: String) -> Result<String, Box<dyn Error + Send + Sync>> {
         let args: UpdateArgs = serde_json::from_str(&arguments)?;
         let plan = Plan { tasks: args.tasks };
+        let json_plan = serde_json::to_string(&plan)?;
 
-        Ok(serde_json::to_string(&plan)?)
+        Ok(format!(
+            "{json_plan}\nPlan saved. Proceed immediately to execute the current task using the appropriate tool (such as run_python). Do not call update_plan again until you have executed code."
+        ))
     }
 }
 

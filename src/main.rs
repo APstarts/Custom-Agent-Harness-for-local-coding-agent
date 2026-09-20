@@ -1,13 +1,14 @@
 use std::error::Error;
 mod agent;
 mod client;
+mod compaction;
 mod message;
 mod plan;
 mod state;
+mod tokencalculator;
 mod tool;
 mod toolregistry;
 mod tools;
-use state::AgentState;
 use std::sync::Arc;
 use tools::{Calculator, CompleteGoal, RunPython, UpdatePlan};
 
@@ -26,10 +27,9 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     registry.register(CompleteGoal);
     registry.register(RunPython);
 
-    let agent = Agent::new(client, Arc::new(registry), 10);
+    let mut agent = Agent::new(client, Arc::new(registry), 10);
     let answer = agent
         .run(
-            &mut AgentState::new(),
             "Write a python code that finds latest news from google rss related to iphone"
                 .to_string(),
         )

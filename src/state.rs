@@ -6,6 +6,7 @@ pub struct AgentState {
     pub goal: String,
     pub plan: Option<Plan>,
     pub messages: Vec<Message>,
+    pub current_tokens: i64,
 }
 
 impl AgentState {
@@ -14,6 +15,7 @@ impl AgentState {
             goal: String::new(),
             plan: None,
             messages: Vec::new(),
+            current_tokens: 0,
         }
     }
     pub fn add_message(&mut self, message: Message) {

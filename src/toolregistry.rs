@@ -1,4 +1,4 @@
-use crate::tool::{Tool, ToolDefinition, ToolSpec};
+use crate::tool::{Tool, ToolSpec};
 use std::{collections::HashMap, error::Error, sync::Arc};
 
 #[derive(Clone)]
