@@ -4,9 +4,9 @@ use std::sync::Arc;
 use crate::{
     client::api::LlmClient,
     message::Message,
+    plan::Plan,
     state::AgentState,
     toolregistry::ToolRegistry,
-    tools::{CompleteGoalArgs, UpdateArgs},
 };
 
 pub struct Agent {
@@ -31,6 +31,17 @@ impl Agent {
     ) -> Result<String, Box<dyn Error + Send + Sync>> {
         let tool_defs = self.registry.definitions();
         state.goal = user_message.clone();
+
+        if state.messages.is_empty() {
+            state.add_message(Message::System {
+                content: "You are a helpful assistant that plans and executes tasks methodically.\n\
+When given a user goal, first use the `update_plan` tool to create a structured plan with steps.\n\
+Work through tasks sequentially. Update the plan as you make progress, marking the current task as `in_progress` and finished tasks as `completed`.\n\
+Once all tasks are completed, call the `complete_goal` tool with a summary of the completed work."
+                    .to_string(),
+            });
+        }
+
         state.add_message(Message::User {
             content: user_message,
         });
@@ -66,10 +77,36 @@ impl Agent {
                                 .execute(&tool_name, call.function.arguments)
                                 .await?;
                             println!("Update Tool output: {}", result);
+                            if let Ok(plan) = serde_json::from_str::<Plan>(&result) {
+                                state.plan = Some(plan);
+                            }
                             state.add_message(Message::Tool {
                                 tool_call_id: tool_id,
                                 content: result,
                             });
+                        } else if tool_name == "complete_goal" {
+                            match self
+                                .registry
+                                .execute(&tool_name, call.function.arguments)
+                                .await
+                            {
+                                Ok(summary) => {
+                                    println!("Complete Goal output: {}", summary);
+                                    state.add_message(Message::Tool {
+                                        tool_call_id: tool_id,
+                                        content: summary.clone(),
+                                    });
+                                    return Ok(summary);
+                                }
+                                Err(e) => {
+                                    let error_msg = format!("Error executing {tool_name}: {e}");
+                                    println!("{error_msg}");
+                                    state.add_message(Message::Tool {
+                                        tool_call_id: tool_id,
+                                        content: error_msg,
+                                    });
+                                }
+                            }
                         } else {
                             let result = match self
                                 .registry

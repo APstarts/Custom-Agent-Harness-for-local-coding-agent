@@ -78,7 +78,7 @@ Do not mark a task completed unless there is evidence it has been completed.
 "#
             .to_string(),
             parameters: json!({
-                "type": "objecct",
+                "type": "object",
                 "properties": {
                     "goal": {
                         "type": "string"

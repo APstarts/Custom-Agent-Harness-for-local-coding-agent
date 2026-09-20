@@ -15,7 +15,7 @@ pub struct PlanTask {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
-enum TaskStatus {
+pub enum TaskStatus {
     Pending,
     InProgress,
     Completed,
