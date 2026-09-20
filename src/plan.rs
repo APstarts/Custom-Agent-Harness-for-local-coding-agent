@@ -34,4 +34,20 @@ impl Plan {
             .iter()
             .find(|task| task.status == TaskStatus::InProgress)
     }
+
+    pub fn mark_in_progress(&mut self, task_id: usize) {
+        for task in &mut self.tasks {
+            if task.id == task_id {
+                task.status = TaskStatus::InProgress;
+            }
+        }
+    }
+
+    pub fn mark_completed(&mut self, task_id: usize) {
+        for task in &mut self.tasks {
+            if task.id == task_id {
+                task.status = TaskStatus::Completed;
+            }
+        }
+    }
 }

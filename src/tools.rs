@@ -80,11 +80,9 @@ Do not mark a task completed unless there is evidence it has been completed.
             parameters: json!({
                 "type": "object",
                 "properties": {
-                    "goal": {
-                        "type": "string"
-                    },
                     "tasks": {
                         "type": "array",
+                        "description": "Sequential engineering tasks needed to accomplish the goal",
                         "items": {
                             "type": "object",
                             "properties": {
@@ -92,7 +90,7 @@ Do not mark a task completed unless there is evidence it has been completed.
                                     "type": "integer"
                                 },
                                 "description": {
-                                    "type": "string",
+                                    "type": "string"
                                 },
                                 "status": {
                                     "type": "string",
@@ -102,11 +100,12 @@ Do not mark a task completed unless there is evidence it has been completed.
                                         "completed"
                                     ]
                                 }
-                            }
+                            },
+                            "required": ["id", "description", "status"]
                         }
                     }
                 },
-                "required": ["goal", "tasks"]
+                "required": ["tasks"]
             }),
         }
     }
