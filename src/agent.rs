@@ -2,10 +2,7 @@ use std::error::Error;
 use std::sync::Arc;
 
 use crate::{
-    client::api::LlmClient,
-    message::Message,
-    plan::Plan,
-    state::AgentState,
+    client::api::LlmClient, message::Message, plan::Plan, state::AgentState,
     toolregistry::ToolRegistry,
 };
 
@@ -72,14 +69,20 @@ Once all tasks are completed, call the `complete_goal` tool with a summary of th
                         let tool_id = call.id;
 
                         if tool_name == "update_plan" {
-                            let result = self
+                            let result = match self
                                 .registry
                                 .execute(&tool_name, call.function.arguments)
-                                .await?;
+                                .await
+                            {
+                                Ok(output) => {
+                                    if let Ok(plan) = serde_json::from_str::<Plan>(&output) {
+                                        state.plan = Some(plan);
+                                    }
+                                    output
+                                }
+                                Err(error) => format!("Error executing {tool_name}: {error}"),
+                            };
                             println!("Update Tool output: {}", result);
-                            if let Ok(plan) = serde_json::from_str::<Plan>(&result) {
-                                state.plan = Some(plan);
-                            }
                             state.add_message(Message::Tool {
                                 tool_call_id: tool_id,
                                 content: result,

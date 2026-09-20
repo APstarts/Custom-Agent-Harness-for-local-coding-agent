@@ -30,7 +30,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let answer = agent
         .run(
             &mut AgentState::new(),
-            "What is the sum of 1231290734 , 21349087321, and 109872340?".to_string(),
+            "Write a python code that finds latest news from google rss related to iphone"
+                .to_string(),
         )
         .await?;
 

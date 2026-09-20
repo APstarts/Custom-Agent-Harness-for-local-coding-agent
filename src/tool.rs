@@ -3,6 +3,12 @@ use std::error::Error;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+#[derive(Debug, Serialize, Clone)]
+pub struct ToolSpec {
+    pub r#type: String, //"function",
+    pub function: ToolDefinition,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ToolCall {
     pub id: String,

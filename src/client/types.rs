@@ -1,11 +1,11 @@
-use crate::{message::Message, tool::ToolDefinition};
+use crate::{message::Message, tool::ToolSpec};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize)]
 pub struct ChatRequest<'a> {
     pub model: &'a str,
     pub messages: &'a [Message],
-    pub tools: &'a [ToolDefinition],
+    pub tools: &'a [ToolSpec],
     pub temperature: f64,
     pub top_k: i64,
     pub top_p: i64,

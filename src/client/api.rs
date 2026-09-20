@@ -1,5 +1,8 @@
 use super::types::{ChatRequest, ChatResponse};
-use crate::{message::Message, tool::ToolDefinition};
+use crate::{
+    message::Message,
+    tool::{ToolDefinition, ToolSpec},
+};
 use reqwest::{Client, Url};
 use std::error::Error;
 
@@ -22,7 +25,7 @@ impl LlmClient {
     pub async fn complete(
         &self,
         messages: &[Message],
-        tools: &[ToolDefinition],
+        tools: &[ToolSpec],
     ) -> Result<ChatResponse, Box<dyn Error + Send + Sync>> {
         let payload = ChatRequest {
             model: &self.model,

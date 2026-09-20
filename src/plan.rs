@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Plan {
-    pub goal: String,
     pub tasks: Vec<PlanTask>,
 }
 

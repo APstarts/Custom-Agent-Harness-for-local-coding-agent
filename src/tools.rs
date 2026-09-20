@@ -49,7 +49,6 @@ impl Tool for Calculator {
 
 #[derive(Debug, Deserialize)]
 pub struct UpdateArgs {
-    pub goal: String,
     pub tasks: Vec<PlanTask>,
 }
 
@@ -114,10 +113,7 @@ Do not mark a task completed unless there is evidence it has been completed.
 
     async fn execute(&self, arguments: String) -> Result<String, Box<dyn Error + Send + Sync>> {
         let args: UpdateArgs = serde_json::from_str(&arguments)?;
-        let plan = Plan {
-            goal: args.goal,
-            tasks: args.tasks,
-        };
+        let plan = Plan { tasks: args.tasks };
 
         Ok(serde_json::to_string(&plan)?)
     }
@@ -178,10 +174,11 @@ impl Tool for RunPython {
     fn definition(&self) -> ToolDefinition {
         ToolDefinition {
             name: "run_python".to_string(),
-            description: r#"Executes a Python snippet in a subprocess and returns stdout and stderr.
+            description:
+                r#"Executes a Python snippet in a subprocess and returns stdout and stderr.
 Use this tool for mathematical computations, data transformations, or logic.
 Remember to use `print(...)` to output results you want to observe."#
-                .to_string(),
+                    .to_string(),
             parameters: json!({
                 "type": "object",
                 "properties": {
@@ -198,10 +195,7 @@ Remember to use `print(...)` to output results you want to observe."#
     async fn execute(&self, arguments: String) -> Result<String, Box<dyn Error + Send + Sync>> {
         let args: RunPythonArgs = serde_json::from_str(&arguments)?;
 
-        let execution = Command::new("python3")
-            .arg("-c")
-            .arg(&args.code)
-            .output();
+        let execution = Command::new("python3").arg("-c").arg(&args.code).output();
 
         let output = match tokio::time::timeout(Duration::from_secs(15), execution).await {
             Ok(result) => result?,
@@ -215,7 +209,10 @@ Remember to use `print(...)` to output results you want to observe."#
             if stdout.trim().is_empty() && !stderr.trim().is_empty() {
                 Ok(format!("Execution completed with warnings:\n{}", stderr))
             } else if stdout.trim().is_empty() {
-                Ok("Execution succeeded with no output. (Tip: Use print() to display results)".to_string())
+                Ok(
+                    "Execution succeeded with no output. (Tip: Use print() to display results)"
+                        .to_string(),
+                )
             } else {
                 Ok(stdout)
             }

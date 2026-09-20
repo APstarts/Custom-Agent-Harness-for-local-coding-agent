@@ -1,4 +1,4 @@
-use crate::tool::{Tool, ToolDefinition};
+use crate::tool::{Tool, ToolDefinition, ToolSpec};
 use std::{collections::HashMap, error::Error, sync::Arc};
 
 #[derive(Clone)]
@@ -18,8 +18,14 @@ impl ToolRegistry {
             .insert(tool.name().to_lowercase(), Arc::new(tool));
     }
 
-    pub fn definitions(&self) -> Vec<ToolDefinition> {
-        self.tools.values().map(|tool| tool.definition()).collect()
+    pub fn definitions(&self) -> Vec<ToolSpec> {
+        self.tools
+            .values()
+            .map(|tool| ToolSpec {
+                r#type: "function".to_string(),
+                function: tool.definition(),
+            })
+            .collect()
     }
 
     pub async fn execute(
