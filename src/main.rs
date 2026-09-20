@@ -9,7 +9,7 @@ mod toolregistry;
 mod tools;
 use state::AgentState;
 use std::sync::Arc;
-use tools::{Calculator, CompleteGoal, UpdatePlan};
+use tools::{Calculator, CompleteGoal, RunPython, UpdatePlan};
 
 use crate::agent::Agent;
 
@@ -24,6 +24,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     registry.register(Calculator);
     registry.register(UpdatePlan);
     registry.register(CompleteGoal);
+    registry.register(RunPython);
 
     let agent = Agent::new(client, Arc::new(registry), 10);
     let answer = agent

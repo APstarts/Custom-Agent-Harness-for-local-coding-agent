@@ -1,7 +1,8 @@
-use std::{error::Error, fmt::Debug};
+use std::{error::Error, fmt::Debug, time::Duration};
 
 use serde::Deserialize;
 use serde_json::json;
+use tokio::process::Command;
 
 use crate::{
     plan::{Plan, PlanTask},
@@ -158,5 +159,71 @@ Only call this after every required plan task has been completed."#
     async fn execute(&self, arguments: String) -> Result<String, Box<dyn Error + Send + Sync>> {
         let args: CompleteGoalArgs = serde_json::from_str(&arguments)?;
         Ok(args.summary)
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RunPythonArgs {
+    pub code: String,
+}
+
+pub struct RunPython;
+
+#[async_trait::async_trait]
+impl Tool for RunPython {
+    fn name(&self) -> &str {
+        "run_python"
+    }
+
+    fn definition(&self) -> ToolDefinition {
+        ToolDefinition {
+            name: "run_python".to_string(),
+            description: r#"Executes a Python snippet in a subprocess and returns stdout and stderr.
+Use this tool for mathematical computations, data transformations, or logic.
+Remember to use `print(...)` to output results you want to observe."#
+                .to_string(),
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "description": "Valid Python code to execute"
+                    }
+                },
+                "required": ["code"]
+            }),
+        }
+    }
+
+    async fn execute(&self, arguments: String) -> Result<String, Box<dyn Error + Send + Sync>> {
+        let args: RunPythonArgs = serde_json::from_str(&arguments)?;
+
+        let execution = Command::new("python3")
+            .arg("-c")
+            .arg(&args.code)
+            .output();
+
+        let output = match tokio::time::timeout(Duration::from_secs(15), execution).await {
+            Ok(result) => result?,
+            Err(_) => return Ok("Execution timed out after 15 seconds.".to_string()),
+        };
+
+        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+        if output.status.success() {
+            if stdout.trim().is_empty() && !stderr.trim().is_empty() {
+                Ok(format!("Execution completed with warnings:\n{}", stderr))
+            } else if stdout.trim().is_empty() {
+                Ok("Execution succeeded with no output. (Tip: Use print() to display results)".to_string())
+            } else {
+                Ok(stdout)
+            }
+        } else {
+            let exit_code = output.status.code().unwrap_or(-1);
+            Ok(format!(
+                "Execution failed with exit code {exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}"
+            ))
+        }
     }
 }
