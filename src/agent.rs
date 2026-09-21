@@ -47,45 +47,74 @@ impl Agent {
             "You are a strategic planning agent. Break down the following user goal into 2 to 4 concrete, sequential sub-tasks.\n\
 Goal: {}\n\n\
 RULES:\n\
-1. Focus on specific problem-domain steps (e.g., finding the RSS feed URL, fetching and parsing the RSS XML, extracting and formatting the articles).\n\
+1. Focus on specific problem-domain steps.\n\
 2. Do NOT create generic meta-steps like 'write code', 'create plan', or 'run code'.\n\
 3. Call the `update_plan` tool to submit your tasks with initial status 'pending'.",
             self.state.goal
         );
 
-        let messages = vec![
+        let mut messages = vec![
             Message::System {
-                content: "You are a methodical planner that decomposes complex goals into distinct, actionable engineering tasks.".to_string(),
+                content: "You are a methodical planner that decomposes complex goals into distinct, actionable engineering tasks. You MUST call the `update_plan` tool to submit your tasks. Keep internal thinking concise.".to_string(),
             },
             Message::User { content: prompt },
         ];
 
-        let response = self
-            .llm
-            .complete_with_max_tokens(&messages, &planning_tools, Some(500))
-            .await?;
-        self.state.current_tokens = response.usage.total_tokens;
+        for attempt in 1..=3 {
+            let response = self
+                .llm
+                .complete_with_max_tokens(&messages, &planning_tools, Some(800))
+                .await?;
+            self.state.current_tokens = response.usage.total_tokens;
 
-        let choice = response
-            .choices
-            .into_iter()
-            .next()
-            .ok_or_else(|| "Empty planning response".to_string())?;
+            let choice = response
+                .choices
+                .into_iter()
+                .next()
+                .ok_or_else(|| "Empty planning response".to_string())?;
 
-        if let Message::Assistant {
-            tool_calls: Some(calls),
-            ..
-        } = choice.message
-        {
-            for call in calls {
-                if call.function.name == "update_plan" {
-                    let args: UpdateArgs = serde_json::from_str(&call.function.arguments)?;
-                    return Ok(Plan { tasks: args.tasks });
+            if let Message::Assistant {
+                tool_calls: Some(ref calls),
+                ..
+            } = choice.message
+            {
+                for call in calls {
+                    if call.function.name == "update_plan" {
+                        match serde_json::from_str::<UpdateArgs>(&call.function.arguments) {
+                            Ok(args) => {
+                                if !args.tasks.is_empty() {
+                                    return Ok(Plan { tasks: args.tasks });
+                                } else {
+                                    messages.push(choice.message.clone());
+                                    messages.push(Message::Tool {
+                                        content: "Error: `tasks` array cannot be empty. Please provide 2 to 4 tasks.".to_string(),
+                                        tool_call_id: call.id.clone(),
+                                    });
+                                }
+                            }
+                            Err(e) => {
+                                messages.push(choice.message.clone());
+                                messages.push(Message::Tool {
+                                    content: format!("Error: Failed to parse update_plan arguments: {}. Please provide valid JSON conforming to the schema.", e),
+                                    tool_call_id: call.id.clone(),
+                                });
+                            }
+                        }
+                    }
                 }
+            } else {
+                messages.push(choice.message);
+                messages.push(Message::User {
+                    content: "Error: You did not call the required `update_plan` tool. You MUST call the `update_plan` tool with your proposed tasks array.".to_string(),
+                });
+            }
+
+            if attempt < 3 {
+                println!(">>> [Planner] Attempt {}/3 did not yield a valid plan, retrying with feedback...", attempt);
             }
         }
 
-        Err("Planner failed to call update_plan".into())
+        Err("Planner failed to call update_plan after retries".into())
     }
 
     async fn execute_task(
