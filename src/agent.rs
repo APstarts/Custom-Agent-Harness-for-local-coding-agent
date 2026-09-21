@@ -60,7 +60,10 @@ RULES:\n\
             Message::User { content: prompt },
         ];
 
-        let response = self.llm.complete(&messages, &planning_tools).await?;
+        let response = self
+            .llm
+            .complete_with_max_tokens(&messages, &planning_tools, Some(500))
+            .await?;
         self.state.current_tokens = response.usage.total_tokens;
 
         let choice = response
@@ -145,7 +148,10 @@ Always use print() in your code to output results. When done, explain what was a
                 self.context_mgr.compact(&self.llm, &mut task_messages).await?;
             }
 
-            let response = self.llm.complete(&task_messages, &execution_tools).await?;
+            let response = self
+                .llm
+                .complete_with_max_tokens(&task_messages, &execution_tools, Some(600))
+                .await?;
             self.state.current_tokens = response.usage.total_tokens;
 
             let choice = response
@@ -239,7 +245,10 @@ Always use print() in your code to output results. When done, explain what was a
             },
         ];
 
-        let response = self.llm.complete(&messages, &[]).await?;
+        let response = self
+            .llm
+            .complete_with_max_tokens(&messages, &[], Some(800))
+            .await?;
         self.state.current_tokens = response.usage.total_tokens;
 
         let choice = response
@@ -252,7 +261,11 @@ Always use print() in your code to output results. When done, explain what was a
             Message::Assistant {
                 content: Some(content),
                 ..
-            } => Ok(content),
+            } if !content.trim().is_empty() => Ok(content),
+            Message::Assistant {
+                reasoning: Some(reasoning),
+                ..
+            } if !reasoning.trim().is_empty() => Ok(reasoning),
             _ => Err("Synthesis failed to produce text content".into()),
         }
     }

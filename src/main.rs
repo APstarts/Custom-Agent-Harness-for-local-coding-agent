@@ -27,7 +27,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     registry.register(CompleteGoal);
     registry.register(RunPython);
 
-    let mut agent = Agent::new(client, Arc::new(registry), 10);
+    let mut agent = Agent::new(client, Arc::new(registry), 5);
     let answer = agent
         .run(
             "Write a python code that finds latest news from google rss related to iphone"

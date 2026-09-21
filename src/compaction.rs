@@ -103,13 +103,17 @@ impl ContextManager {
             },
         ];
 
-        let response = llm.complete(&summary_prompt, &[]).await?;
+        let response = llm.complete_with_max_tokens(&summary_prompt, &[], Some(300)).await?;
         let summary_content = response
             .choices
             .into_iter()
             .next()
             .and_then(|c| match c.message {
-                Message::Assistant { content, .. } => content,
+                Message::Assistant { content, reasoning, .. } => {
+                    content
+                        .filter(|c| !c.trim().is_empty())
+                        .or_else(|| reasoning.filter(|r| !r.trim().is_empty()))
+                }
                 _ => None,
             })
             .unwrap_or_else(|| "Intermediate steps completed execution successfully.".to_string());

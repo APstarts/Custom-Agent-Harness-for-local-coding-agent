@@ -24,6 +24,15 @@ impl LlmClient {
         messages: &[Message],
         tools: &[ToolSpec],
     ) -> Result<ChatResponse, Box<dyn Error + Send + Sync>> {
+        self.complete_with_max_tokens(messages, tools, None).await
+    }
+
+    pub async fn complete_with_max_tokens(
+        &self,
+        messages: &[Message],
+        tools: &[ToolSpec],
+        max_tokens: Option<u32>,
+    ) -> Result<ChatResponse, Box<dyn Error + Send + Sync>> {
         let payload = ChatRequest {
             model: &self.model,
             messages,
@@ -31,6 +40,7 @@ impl LlmClient {
             tools: tools,
             top_k: 40,
             top_p: 0.9,
+            max_tokens,
         };
         let response = self
             .client
