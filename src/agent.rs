@@ -2,8 +2,8 @@ use std::error::Error;
 use std::sync::Arc;
 
 use crate::{
-    client::api::LlmClient, message::Message, plan::Plan, state::AgentState,
-    toolregistry::ToolRegistry, tools::UpdateArgs,
+    client::api::LlmClient, compaction::ContextManager, message::Message, plan::Plan,
+    state::AgentState, toolregistry::ToolRegistry, tools::UpdateArgs,
 };
 
 pub struct Agent {
@@ -11,7 +11,7 @@ pub struct Agent {
     state: AgentState,
     registry: Arc<ToolRegistry>,
     max_steps: usize,
-    compaction_threshold: i64,
+    context_mgr: ContextManager,
     system_prompt: Message,
 }
 
@@ -22,7 +22,7 @@ impl Agent {
             state: AgentState::new(),
             registry,
             max_steps,
-            compaction_threshold: 3500,
+            context_mgr: ContextManager::new(4096, 3000),
             system_prompt: Message::System {
                 content: "You are a helpful assistant that plans and executes tasks methodically."
                     .to_string(),
@@ -30,8 +30,9 @@ impl Agent {
         }
     }
 
-    pub fn needs_compaction(&self) -> bool {
-        self.state.current_tokens >= self.compaction_threshold
+    pub fn needs_compaction(&self, messages: &[Message]) -> bool {
+        self.context_mgr
+            .needs_compaction(messages, self.state.current_tokens)
     }
 
     async fn generate_plan(&mut self) -> Result<Plan, Box<dyn Error + Send + Sync>> {
@@ -136,8 +137,12 @@ Always use print() in your code to output results. When done, explain what was a
         let mut final_output = String::new();
 
         for step in 0..max_task_steps {
-            if self.needs_compaction() {
-                println!("==================Compaction required!!======================");
+            if self.needs_compaction(&task_messages) {
+                println!(
+                    ">>> [ContextManager] Compacting task messages (current tokens: {})...",
+                    self.state.current_tokens
+                );
+                self.context_mgr.compact(&self.llm, &mut task_messages).await?;
             }
 
             let response = self.llm.complete(&task_messages, &execution_tools).await?;
@@ -175,9 +180,10 @@ Always use print() in your code to output results. When done, explain what was a
                             result
                         );
                         final_output = result.clone();
+                        let sanitized_result = self.context_mgr.sanitize_tool_output(result);
                         task_messages.push(Message::Tool {
                             tool_call_id: tool_id,
-                            content: result,
+                            content: sanitized_result,
                         });
                     }
                 }
@@ -285,11 +291,14 @@ Always use print() in your code to output results. When done, explain what was a
 
             let mut context_summary = String::new();
             for (prev_task, prev_output) in &task_results {
+                let sanitized_prev = self
+                    .context_mgr
+                    .sanitize_tool_output(prev_output.trim().to_string());
                 context_summary.push_str(&format!(
                     "- Task {}: {}\n  Output: {}\n",
                     prev_task.id,
                     prev_task.description,
-                    prev_output.trim()
+                    sanitized_prev
                 ));
             }
 
