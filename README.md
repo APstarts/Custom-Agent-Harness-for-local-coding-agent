@@ -240,7 +240,7 @@ This repository demonstrates:
 
 ## 📬 Contact & Opportunities
 
-I am a passionate software engineer specializing in **Systems Programming (Rust/C++)**, **Autonomous Agents**, and **High-Performance AI Infrastructure**. 
+I am a Chartered Accountant using my experience in Financial Audits, Internal/Process Audits, and Financial Operations to gain deep understanding of processes to build apt solutions with development of Automation scripts, Web Apps, Mobile Apps, and Custom AI Agents.
 
 I am open to:
 - **Full-Time Software Engineering Roles** (Rust, Backend, Distributed Systems, AI Infrastructure)
