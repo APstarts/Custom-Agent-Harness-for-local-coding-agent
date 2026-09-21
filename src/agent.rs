@@ -157,7 +157,7 @@ Execute this task using the available tools (such as `run_python`). Always print
             Message::System {
                 content: "You are an autonomous engineering agent executing a specific sub-task. \
 Use available tools (like `run_python` or `calculator`) to accomplish the objective. \
-Always use print() in your code to output results. When done, explain what was accomplished."
+Always use print() in your code to inspect results. When working with websites or APIs, verify HTTP status codes and responses—do NOT assume an endpoint works if it returns 4xx/5xx errors or empty data; inspect URLs or HTML to find the correct endpoints. When finished, explain what was verified."
                     .to_string(),
             },
             Message::User {
@@ -179,7 +179,7 @@ Always use print() in your code to output results. When done, explain what was a
 
             let response = self
                 .llm
-                .complete_with_max_tokens(&task_messages, &execution_tools, Some(600))
+                .complete_with_max_tokens(&task_messages, &execution_tools, Some(1024))
                 .await?;
             self.state.current_tokens = response.usage.total_tokens;
 
@@ -263,12 +263,12 @@ Always use print() in your code to output results. When done, explain what was a
 
         let messages = vec![
             Message::System {
-                content: "You are a helpful assistant. Synthesize the completed task results into a comprehensive final answer for the user."
+                content: "You are an expert software engineer. Synthesize the completed task results into a comprehensive, fully functional, and complete final response for the user. When writing code, provide complete, syntactically valid code including all imports, helper functions, and an executable entrypoint. Never truncate code or leave incomplete blocks."
                     .to_string(),
             },
             Message::User {
                 content: format!(
-                    "Goal: {}\n\nExecution Results:\n{}\nPlease provide the final response to the user's goal based on these results.",
+                    "Goal: {}\n\nExecution Results:\n{}\nPlease provide the complete and working final response to the user's goal based on these results.",
                     self.state.goal, results_text
                 ),
             },
@@ -276,7 +276,7 @@ Always use print() in your code to output results. When done, explain what was a
 
         let response = self
             .llm
-            .complete_with_max_tokens(&messages, &[], Some(800))
+            .complete(&messages, &[])
             .await?;
         self.state.current_tokens = response.usage.total_tokens;
 
