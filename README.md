@@ -233,7 +233,7 @@ Below is an excerpt from a live execution log running locally on `qwen3.5:2b-q4_
 
 This repository demonstrates:
 - **Systems Programming Mastery**: Idiomatic Rust, async concurrency with Tokio, custom dynamic dispatch with `Arc<dyn Tool>`, and memory efficiency.
-- **Deep LLM Mechanics Understanding**: Real-world knowledge of context windows, KV-cache behavior, token estimation, autoregressive generation traps, and OpenAI schema compliance.
+- **Deep LLM Mechanics Understanding**: Real-world knowledge of context windows, token estimation, autoregressive generation traps, and OpenAI schema compliance.
 - **Architectural Discipline**: Strict separation of concerns (Planning vs Execution vs Synthesis), eliminating infinite loops by design.
 
 ---
