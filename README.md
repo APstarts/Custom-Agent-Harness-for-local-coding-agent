@@ -247,9 +247,9 @@ I am open to:
 - **Consulting & Contract Work** (Designing enterprise-grade autonomous agents, local LLM integrations)
 - **Open-Source Collaborations**
 
-- **GitHub**: [@yourusername](https://github.com/yourusername)
-- **LinkedIn**: [linkedin.com/in/yourprofile](https://linkedin.com/in/yourprofile)
-- **Email**: `your.email@example.com`
+- **GitHub**: [@apstarts](https://github.com/apstarts)
+- **LinkedIn**: [linkedin.com/in/anuragpal27](https://linkedin.com/in/anuragpal27)
+- **Email**: `connect.anuragpal@outlook.com`
 
 ---
 *Built with ❤️ in Rust.*
