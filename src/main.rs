@@ -84,14 +84,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     println!("Agent's response:\n{}", answer);
 
     if let Some(code) = extract_python_code(&answer) {
-        if let Some(parent) = output_path.parent() {
-            if !parent.as_os_str().is_empty() {
-                let _ = fs::create_dir_all(parent);
-            }
-        }
-        fs::write(&output_path, &code)?;
+        let verified_code = agent.verify_and_repair(code, &output_path, 3).await?;
+        fs::write(&output_path, &verified_code)?;
         println!("\n============================================================");
-        println!(" Successfully saved Python script to: {}", output_path.display());
+        println!(" Successfully saved verified Python script to: {}", output_path.display());
         println!("============================================================");
     } else {
         println!("\n⚠️ No Python code block found in response to save.");

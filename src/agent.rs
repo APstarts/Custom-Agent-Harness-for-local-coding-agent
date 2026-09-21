@@ -1,5 +1,8 @@
 use std::error::Error;
+use std::path::Path;
 use std::sync::Arc;
+use tokio::process::Command;
+use tokio::time::{timeout, Duration};
 
 use crate::{
     client::api::LlmClient, compaction::ContextManager, message::Message, plan::Plan,
@@ -157,7 +160,9 @@ Execute this task using the available tools (such as `run_python`). Always print
             Message::System {
                 content: "You are an autonomous engineering agent executing a specific sub-task. \
 Use available tools (like `run_python` or `calculator`) to accomplish the objective. \
-Always use print() in your code to inspect results. When working with websites or APIs, verify HTTP status codes and responses—do NOT assume an endpoint works if it returns 4xx/5xx errors or empty data; inspect URLs or HTML to find the correct endpoints. When finished, explain what was verified."
+Always use print() in your code to inspect results. \
+Note: `bs4` / BeautifulSoup is NOT installed in this environment; use `requests`, `re`, `json`, or standard library `urllib` / `html.parser` instead. \
+When working with websites or APIs, verify HTTP status codes and responses—do NOT assume an endpoint works if it returns 4xx/5xx errors or empty data; inspect URLs or HTML to find the correct endpoints. When finished, explain what was verified."
                     .to_string(),
             },
             Message::User {
@@ -263,7 +268,12 @@ Always use print() in your code to inspect results. When working with websites o
 
         let messages = vec![
             Message::System {
-                content: "You are an expert software engineer. Synthesize the completed task results into a comprehensive, fully functional, and complete final response for the user. When writing code, provide complete, syntactically valid code including all imports, helper functions, and an executable entrypoint. Never truncate code or leave incomplete blocks."
+                content: "You are an expert software engineer. Synthesize the completed task results into a comprehensive, fully functional, and complete final response for the user.\n\
+CRITICAL REQUIREMENTS FOR PYTHON CODE:\n\
+1. Provide complete, syntactically valid code including all imports, helper functions, and an executable entrypoint (`if __name__ == '__main__':`).\n\
+2. Only use standard library modules (like `urllib.request`, `urllib.parse`, `re`, `json`, `html.parser`, `os`) or `requests`. Do NOT import `bs4` / BeautifulSoup as it is not installed in the environment.\n\
+3. Ensure all URLs, scraping logic, and download routines are fully functional and complete.\n\
+4. Never truncate code or leave incomplete blocks."
                     .to_string(),
             },
             Message::User {
@@ -371,5 +381,117 @@ Always use print() in your code to inspect results. When working with websites o
 
         println!("\nPlan completed: {}", self.state.is_completed());
         Ok(final_answer)
+    }
+
+    pub async fn verify_and_repair(
+        &mut self,
+        mut current_code: String,
+        output_path: &Path,
+        max_attempts: usize,
+    ) -> Result<String, Box<dyn Error + Send + Sync>> {
+        println!("\n============================================================");
+        println!("=== PHASE 4: VERIFYING & AUTO-REPAIRING DELIVERABLE ========");
+        println!("============================================================");
+
+        if let Some(parent) = output_path.parent() {
+            if !parent.as_os_str().is_empty() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+        }
+
+        for attempt in 1..=max_attempts {
+            std::fs::write(output_path, &current_code)?;
+            println!(
+                "\n>>> [Verification Attempt {}/{}] Executing script: {}",
+                attempt,
+                max_attempts,
+                output_path.display()
+            );
+
+            let execution = Command::new("python3").arg(output_path).output();
+
+            let output = match timeout(Duration::from_secs(30), execution).await {
+                Ok(res) => match res {
+                    Ok(out) => out,
+                    Err(e) => {
+                        println!("⚠️ Subprocess execution error: {e}");
+                        return Ok(current_code);
+                    }
+                },
+                Err(_) => {
+                    println!("⚠️ Execution timed out after 30 seconds (script is likely active or finished).");
+                    return Ok(current_code);
+                }
+            };
+
+            let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+            if output.status.success() {
+                println!("✅ Verification PASSED! Script executed cleanly with exit code 0.");
+                if !stdout.trim().is_empty() {
+                    let preview: String = stdout.lines().take(10).collect::<Vec<_>>().join("\n");
+                    println!("Output preview:\n{}", preview);
+                }
+                return Ok(current_code);
+            } else {
+                let exit_code = output.status.code().unwrap_or(-1);
+                println!("❌ Verification FAILED with exit code {exit_code}:");
+                if !stderr.trim().is_empty() {
+                    eprintln!("STDERR:\n{}", stderr.trim());
+                } else if !stdout.trim().is_empty() {
+                    println!("STDOUT:\n{}", stdout.trim());
+                }
+
+                if attempt == max_attempts {
+                    println!("⚠️ Reached maximum repair attempts. Keeping latest version.");
+                    return Ok(current_code);
+                }
+
+                println!(">>> Sending execution error back to LLM for auto-repair...");
+                let repair_prompt = vec![
+                    Message::System {
+                        content: "You are an expert Python engineer. Fix the failing Python script based on the exact execution error.\n\
+CRITICAL RULES:\n\
+1. Output the complete, working Python script inside a single ```python ... ``` markdown block.\n\
+2. Only use standard library modules (like `urllib.request`, `urllib.parse`, `json`, `re`, `html.parser`, `os`, `sys`) or `requests`. Do NOT import `bs4` or BeautifulSoup as it is not installed in the environment.\n\
+3. Ensure all URLs, scraping logic, and error handling are fully implemented.\n\
+4. Never truncate code or leave incomplete blocks."
+                            .to_string(),
+                    },
+                    Message::User {
+                        content: format!(
+                            "User Goal: {}\n\nExecution Failure (Exit Code {}):\n{}\nSTDOUT:\n{}\n\nFailing Code:\n```python\n{}\n```\n\nPlease rewrite the complete, working Python script that fixes this error.",
+                            self.state.goal, exit_code, stderr.trim(), stdout.trim(), current_code
+                        ),
+                    },
+                ];
+
+                let repair_response = self.llm.complete(&repair_prompt, &[]).await?;
+                let choice = repair_response
+                    .choices
+                    .into_iter()
+                    .next()
+                    .ok_or_else(|| "Empty repair response".to_string())?;
+
+                let response_text = match choice.message {
+                    Message::Assistant {
+                        content: Some(c), ..
+                    } => c,
+                    Message::Assistant {
+                        reasoning: Some(r), ..
+                    } => r,
+                    _ => return Ok(current_code),
+                };
+
+                if let Some(new_code) = crate::extract_python_code(&response_text) {
+                    current_code = new_code;
+                } else {
+                    println!("⚠️ Could not extract python code block from repair response. Retrying with existing code.");
+                }
+            }
+        }
+
+        Ok(current_code)
     }
 }
