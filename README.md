@@ -243,8 +243,7 @@ This repository demonstrates:
 I am a Chartered Accountant using my experience in Financial Audits, Internal/Process Audits, and Financial Operations to gain deep understanding of processes to build apt solutions with development of Automation scripts, Web Apps, Mobile Apps, and Custom AI Agents.
 
 I am open to:
-- **Full-Time Software Engineering Roles** (Rust, Backend, Distributed Systems, AI Infrastructure)
-- **Consulting & Contract Work** (Designing enterprise-grade autonomous agents, local LLM integrations)
+- **Consulting & Contract Work** (Designing enterprise-grade autonomous agents, local LLM integrations, automation scripts, web apps, mobile apps)
 - **Open-Source Collaborations**
 
 - **GitHub**: [@apstarts](https://github.com/apstarts)
